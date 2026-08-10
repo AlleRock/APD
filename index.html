@@ -221,6 +221,24 @@ header.top .gear{
 .gh-status.ok{color:#6FBF73;}
 .gh-status.err{color:#E23D28;}
 
+/* ---- Libreria esercizi ---- */
+.lib-list{padding:4px 18px 10px;}
+.lib-row{
+  display:flex; align-items:center; gap:14px; padding:12px 0; border-top:1px solid var(--line);
+  cursor:pointer;
+}
+.lib-row:first-child{border-top:none;}
+.lib-row:active{background:rgba(255,255,255,0.04);}
+.lib-row .thumb{
+  width:64px; height:48px; border-radius:8px; overflow:hidden; flex-shrink:0;
+  background:#fff; border:1px solid var(--line);
+}
+.lib-row .thumb img{width:100%; height:100%; object-fit:cover;}
+.lib-row .info{flex:1; min-width:0;}
+.lib-row .name{font-weight:600; font-size:14.5px;}
+.lib-row .target{font-size:12px; color:var(--chalk-dim); margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.lib-row .chev{color:var(--chalk-dim); font-size:16px;}
+
 /* ---- Exercise detail page ---- */
 .ex-page{padding:0 18px;}
 .ex-back{
@@ -281,6 +299,7 @@ nav.bottom button.active{color:var(--accent);}
 <nav class="bottom">
   <button id="nav-week" class="active" onclick="setView('week')"><span class="ic">📅</span>Settimana</button>
   <button id="nav-timeline" onclick="setView('timeline')"><span class="ic">📋</span>Timeline</button>
+  <button id="nav-exercises" onclick="setView('exercises')"><span class="ic">💪</span>Esercizi</button>
 </nav>
 
 <!-- Day detail sheet -->
@@ -787,6 +806,7 @@ function goToWeekFromTimeline(idx){
   view = 'week';
   document.getElementById('nav-week').classList.add('active');
   document.getElementById('nav-timeline').classList.remove('active');
+  document.getElementById('nav-exercises').classList.remove('active');
   renderWeek();
   window.scrollTo({top:0, behavior:'smooth'});
 }
@@ -830,9 +850,33 @@ function openDayModal(wIdx, dIdx){
   document.getElementById('dayOverlay').classList.add('show');
 }
 
+/* ---------- Render: Libreria esercizi ---------- */
+function renderExercisesList(){
+  const root = document.getElementById('app');
+  const rows = Object.keys(EXERCISES).map(exId=>{
+    const info = EXERCISES[exId];
+    return `<div class="lib-row" onclick="openExerciseFromLibrary('${exId}')">
+      <div class="thumb">${info.img ? `<img src="${info.img}" alt="${info.name}">` : ''}</div>
+      <div class="info">
+        <div class="name">${info.name}</div>
+        <div class="target">${info.target}</div>
+      </div>
+      <div class="chev">›</div>
+    </div>`;
+  }).join('');
+  root.innerHTML = `<div class="section-label">Tutti gli esercizi</div><div class="lib-list">${rows}</div>`;
+}
+
+function openExerciseFromLibrary(exId){
+  exerciseCtx = {exId, from:'library'};
+  view = 'exercise';
+  renderExercise();
+  window.scrollTo({top:0});
+}
+
 /* ---------- Render: Esercizio (terza pagina) ---------- */
 function openExercise(exId, wIdx, dIdx){
-  exerciseCtx = {exId, wIdx, dIdx};
+  exerciseCtx = {exId, wIdx, dIdx, from:'day'};
   document.getElementById('dayOverlay').classList.remove('show');
   view = 'exercise';
   renderExercise();
@@ -843,9 +887,12 @@ function renderExercise(){
   if(!exerciseCtx){ setView('week'); return; }
   const info = EXERCISES[exerciseCtx.exId];
   if(!info){ setView('week'); return; }
-  const week = flatWeeks(plan)[exerciseCtx.wIdx];
-  const d = week ? week.days[exerciseCtx.dIdx] : null;
-  const dose = d && d.dayType ? DAY_TYPES[d.dayType].find(e=>e.id===exerciseCtx.exId)?.dose : '';
+  let dose = '';
+  if(exerciseCtx.from==='day' && plan){
+    const week = flatWeeks(plan)[exerciseCtx.wIdx];
+    const d = week ? week.days[exerciseCtx.dIdx] : null;
+    dose = d && d.dayType ? DAY_TYPES[d.dayType].find(e=>e.id===exerciseCtx.exId)?.dose : '';
+  }
 
   root.innerHTML = `
     <div class="ex-page">
@@ -872,15 +919,16 @@ function renderExercise(){
 }
 
 function backFromExercise(){
-  if(exerciseCtx){
+  if(exerciseCtx && exerciseCtx.from==='day' && plan){
     view = 'week';
     weekIndex = exerciseCtx.wIdx;
     document.getElementById('nav-week').classList.add('active');
     document.getElementById('nav-timeline').classList.remove('active');
+    document.getElementById('nav-exercises').classList.remove('active');
     renderWeek();
     setTimeout(()=>openDayModal(exerciseCtx.wIdx, exerciseCtx.dIdx), 50);
   } else {
-    setView('week');
+    setView('exercises');
   }
 }
 
@@ -889,11 +937,14 @@ function setView(v){
   view = v;
   document.getElementById('nav-week').classList.toggle('active', v==='week');
   document.getElementById('nav-timeline').classList.toggle('active', v==='timeline');
+  document.getElementById('nav-exercises').classList.toggle('active', v==='exercises');
   if(v==='week'){
     if(plan) weekIndex = findCurrentWeekIndex(plan);
     renderWeek();
   } else if(v==='timeline'){
     renderTimeline();
+  } else if(v==='exercises'){
+    renderExercisesList();
   }
 }
 
