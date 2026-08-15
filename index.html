@@ -208,10 +208,13 @@ header.top .gear{
   width:100%; min-height:220px; background:var(--asphalt); border:1px solid var(--line); color:var(--chalk);
   border-radius:10px; padding:12px; font-family:monospace; font-size:12.5px; resize:vertical; margin-top:10px;
 }
-#overlay input[type=text], #overlay input[type=password]{
+#overlay input[type=text], #overlay input[type=password], #overlay input[type=date], #overlay input[type=number]{
   width:100%; background:var(--asphalt); border:1px solid var(--line); color:var(--chalk);
   border-radius:10px; padding:11px 12px; font-size:14px; margin-top:8px;
 }
+.gen-block{margin-top:10px; padding-top:14px; border-top:1px solid var(--line);}
+.gen-block .row{display:flex; gap:8px;}
+.gen-block .row input{flex:1;}
 .actions{display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;}
 .actions .btn{margin-top:0;}
 .hint{font-size:12px; color:var(--chalk-dim); line-height:1.5; margin-top:10px;}
@@ -312,6 +315,19 @@ nav.bottom button.active{color:var(--accent);}
   <div class="sheet">
     <h3>Impostazioni</h3>
     <p class="sub">Incolla/modifica il piano, poi salva.</p>
+
+    <div class="gen-block">
+      <p class="hint" style="margin-top:0;">Genera il piano da una data di inizio (poi puoi ritoccarlo qui sotto):</p>
+      <input type="text" id="genTitle" placeholder="Titolo blocco (es. Fase 1 - Fondamenta)">
+      <div class="row">
+        <input type="date" id="genStartDate">
+        <input type="number" id="genWeeks" placeholder="N. settimane" value="4" min="1" max="52">
+      </div>
+      <div class="actions">
+        <button class="btn secondary" onclick="generatePlanFromDate()">📅 Genera piano</button>
+      </div>
+    </div>
+
     <textarea id="planInput" placeholder="BLOCCO: ..."></textarea>
     <div id="parseErr" style="display:none; color:#E23D28; font-size:12.5px; margin-top:8px;"></div>
     <div class="actions">
@@ -593,6 +609,33 @@ GIO 28/08 | riposo
 VEN 29/08 | C
 SAB 30/08 | riposo
 DOM 31/08 | riposo`;
+
+/* ---------- Generatore piano da data di inizio ---------- */
+function generatePlanFromDate(){
+  const title = (document.getElementById('genTitle').value || 'Programma').trim();
+  const startVal = document.getElementById('genStartDate').value;
+  if(!startVal){ alert('Scegli una data di inizio'); return; }
+  const weeksCount = Math.max(1, parseInt(document.getElementById('genWeeks').value, 10) || 4);
+
+  const start = new Date(startVal + 'T00:00:00');
+  const year = start.getFullYear();
+  const dowAbbr = ['DOM','LUN','MAR','MER','GIO','VEN','SAB']; // Date.getDay(): 0=Dom
+  const pattern = ['A','riposo','B','riposo','C','riposo','riposo']; // sequenza fissa dal giorno di inizio
+  const fmt = d => String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0');
+
+  const lines = [`BLOCCO: ${title} | ${year}`];
+  let cur = new Date(start);
+  for(let w=0; w<weeksCount; w++){
+    const weekDates = [];
+    for(let i=0;i<7;i++){ weekDates.push(new Date(cur)); cur.setDate(cur.getDate()+1); }
+    lines.push(`SETTIMANA: ${fmt(weekDates[0])} - ${fmt(weekDates[6])} | Settimana ${w+1}`);
+    lines.push(`NOTA SETTIMANA: ${w===0 ? 'A → B → C senza aumentare nulla.' : 'Ripeti il programma. Se è facile, aumenta gradualmente una sola variabile alla volta.'}`);
+    weekDates.forEach((d,idx)=>{
+      lines.push(`${dowAbbr[d.getDay()]} ${fmt(d)} | ${pattern[idx]}`);
+    });
+  }
+  document.getElementById('planInput').value = lines.join('\n');
+}
 
 /* ---------- Parser ---------- */
 function parsePlan(text){
